@@ -23,7 +23,7 @@ type UserState struct {
 var userStates = make(map[int64]*UserState)
 
 func main() {
-	// 1. Загружаем токен
+	// Загрузка токена
 	godotenv.Load()
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 
@@ -31,7 +31,7 @@ func main() {
 		log.Panic("❌ ТОКЕН НЕ НАЙДЕН! Создайте файл .env с TELEGRAM_BOT_TOKEN=ваш_токен")
 	}
 
-	// 2. Создаем бота
+	// 2. Создание бота
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Panic("❌ Ошибка создания бота: ", err)
@@ -40,7 +40,7 @@ func main() {
 	bot.Debug = true
 	log.Printf("✅ Бот %s запущен и ждет заказы...", bot.Self.UserName)
 
-	// 3. Настраиваем обновления
+	// 3. Настройка обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
@@ -65,14 +65,14 @@ func handleMessage(bot *tgbotapi.BotAPI, chatID int64, text string) {
 
 	state, exists := userStates[chatID]
 
-	// Проверяем команду /start или /restart
+	// Проверка /start или /restart
 	if text == "/start" || text == "/restart" || text == "🔄 Начать заново" {
 		sendStartMessage(bot, chatID)
-		delete(userStates, chatID) // Сбрасываем состояние
+		delete(userStates, chatID) // Сброс
 		return
 	}
 
-	// Проверяем нажатие кнопок услуг (более гибкая проверка)
+	// Проверка нажатия кнопок услуг
 	if strings.Contains(text, "Консультация") && strings.Contains(text, "водоснабжению") {
 		log.Printf("DEBUG: Нажата кнопка водоснабжения")
 		startWaterConsultation(bot, chatID)
@@ -85,7 +85,7 @@ func handleMessage(bot *tgbotapi.BotAPI, chatID int64, text string) {
 		return
 	}
 
-	// Проверяем нажатие кнопки "Готово"
+	// Проверка нажатия кнопки "Готово"
 	if text == "Готово" {
 		if exists {
 			continueDialog(bot, chatID, text, state)
@@ -131,7 +131,7 @@ _В любой момент можете отправить /restart для на
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ParseMode = "Markdown"
 
-	// Обновленная клавиатура с кнопкой Restart
+	// Клавиатура
 	keyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("1️⃣ Консультация по водоснабжению"),
@@ -147,8 +147,6 @@ _В любой момент можете отправить /restart для на
 
 	bot.Send(msg)
 }
-
-// ============ ВАЖНО: ЭТУ ФУНКЦИЮ НУЖНО ВЫНЕСТИ ОТДЕЛЬНО ============
 
 // Начало консультации по водоснабжению
 func startWaterConsultation(bot *tgbotapi.BotAPI, chatID int64) {
@@ -170,8 +168,6 @@ func startWaterConsultation(bot *tgbotapi.BotAPI, chatID int64) {
 	bot.Send(msg)
 }
 
-// ============ КОНЕЦ ИСПРАВЛЕНИЯ ============
-
 // Продолжение диалога
 func continueDialog(bot *tgbotapi.BotAPI, chatID int64, text string, state *UserState) {
 	if state.ServiceType == "water" {
@@ -181,9 +177,9 @@ func continueDialog(bot *tgbotapi.BotAPI, chatID int64, text string, state *User
 	}
 }
 
-// Диалог для водоснабжения - ОБНОВЛЕННЫЙ
+// Диалог для водоснабжения
 func continueWaterDialog(bot *tgbotapi.BotAPI, chatID int64, text string, state *UserState) {
-	// ВАЖНО: Добавляем проверку на restart и пустые сообщения
+	// Проверка на restart и пустые сообщения
 	if text == "/restart" || text == "🔄 Начать заново" {
 		sendStartMessage(bot, chatID)
 		delete(userStates, chatID)
@@ -275,11 +271,10 @@ _Для отмены отправьте /restart_`
 		state.Data["contacts"] = text
 		state.Step = 6
 
-		// Извлекаем email для персонализации
+		// Извлечение email
 		email := "указанный email"
 		// Простой поиск email в тексте
 		if len(text) > 0 {
-			// Можно добавить проверку на наличие @
 			email = text
 		}
 
@@ -312,10 +307,10 @@ _Для отмены отправьте /restart_`
 
 	case 6: // Подтверждение "Готово"
 		if text == "Готово" {
-			// Сохраняем заявку в файл
+			// Сохранение заявки в файл
 			saveApplicationToFile(chatID, state.Data, "water")
 
-			// Формируем финальное сообщение
+			// Финальное сообщение
 			summary := `✅ *Спасибо за обращение в компанию ВиТИМ!*
 
 ✅ *Ваша заявка принята!*
@@ -340,7 +335,7 @@ _Заявка №` + time.Now().Format("2006-01-02_15-04-05")
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 			bot.Send(msg)
 
-			// Отправляем уведомление админу
+			// Отправка уведомления админу
 			sendAdminNotification(bot, "💧 НОВАЯ ЗАЯВКА ПО ВОДОСНАБЖЕНИЮ", state.Data)
 
 			// Удаляем состояние
@@ -376,9 +371,9 @@ func start3DModeling(bot *tgbotapi.BotAPI, chatID int64) {
 	bot.Send(msg)
 }
 
-// Диалог для 3D моделей - ОБНОВЛЕННЫЙ
+// Диалог для 3D моделей
 func continue3DDialog(bot *tgbotapi.BotAPI, chatID int64, text string, state *UserState) {
-	// ТАКЖЕ ДОБАВЛЯЕМ ПРОВЕРКУ НА RESTART
+	// Проверка на restart
 	if text == "/restart" || text == "🔄 Начать заново" {
 		sendStartMessage(bot, chatID)
 		delete(userStates, chatID)
@@ -541,7 +536,6 @@ func sendAdminNotification(bot *tgbotapi.BotAPI, title string, data map[string]s
 	message += fmt.Sprintf("📅 *Время:* %s\n\n", time.Now().Format("02.01.2006 15:04"))
 
 	for key, value := range data {
-		// Красивые названия полей
 		var fieldName string
 		switch key {
 		case "system_type":
@@ -572,3 +566,4 @@ func sendAdminNotification(bot *tgbotapi.BotAPI, title string, data map[string]s
 		log.Printf("❌ Ошибка отправки админу: %v", err)
 	}
 }
+
